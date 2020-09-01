@@ -2,7 +2,9 @@
 title: "Korb Lab Overlap pipeline"
 author: "Sam Thudium"
 date: "7/24/2020"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -11,24 +13,26 @@ knitr::opts_chunk$set(echo = TRUE)
 #Load libraries
 ```{r}
 library(tidyverse)
+library(here)
 ```
 # First pass gene list overlap 
 This code take a folder containing text files of genelists (could be ENSEMBL ids or official gene symbols) and iteratively overlaps each pairwise combination of those lists. The first step is to set the working directory as the folder that contains the genelist files. 
 
-```{r }
-setwd("/Users/Sammy/Desktop/UPenn/Projects/Overlap_pipline/test_genelists") ## input path to the folder
-files <- dir()
+```{r, warning = FALSE}
+files <- list.files(here("test_genelists"))
 ```
 
 Next, before running the overlaps, we need to create a folder in which to store them. This will be created in the folder one step above the genelist folder.
 ```{r}
-dir.create(path = "../output")
+dir.create(path = "output")
+setwd("/Users/Sammy/Desktop/scripts/Github/Overlap_pipline_KorbLab/test_genelists")
 for( i in files ){
+  paste0()
   D <- data.frame(matrix(nrow=0,ncol=1))
-  d <- read.table(i,header=F,stringsAsFactors=F)
+  d <- read.table(here(i,header=F,stringsAsFactors=F))
   for( j in files) {
     if (j > i) {
-      d2 <- read.table(j, header = F, stringsAsFactors = F)
+      d2 <- read.table(here(j, header = F, stringsAsFactors = F))
       overlap <- d %>% intersect(d2)
       OL_df <- paste("D", i, j, sep = "_")
       OL_df<- assign(OL_df, rbind(D,overlap))

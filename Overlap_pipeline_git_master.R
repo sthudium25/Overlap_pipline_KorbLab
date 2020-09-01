@@ -1,4 +1,7 @@
 ## Overlap analaysis pipeline for a folder containing the lists of genes to be overlapped.
+## This will produce a folder of pairwise overlap text files, a table of the numbers
+## in each of the original lists and overlap lists, as well as statistics, and 
+## a folder containing pairwise venn diagrams (pdfs)
 library(tidyverse)
 
 ## set working directory as the folder that contain the genelist files 
@@ -39,7 +42,7 @@ for( i in files ){
 }
 
 ## Change the totalPop to match the background expressed genelist for your experiment
-totalPop <- 18275
+totalPop <- 18000
 
 hyperGeomTest <- function(overlap, sample1, sample2, background) {
   sum(dhyper(overlap:sample1, sample2, background - sample2, sample1))
@@ -50,7 +53,22 @@ OLValuesDf <- OLValuesDf %>% mutate(hyper_pval = mapply(hyperGeomTest,
                                                         OLValuesDf$ith, 
                                                         OLValuesDf$jth, 
                                                         totalPop))
+OLValuesDf$List1 <- gsub("\\..*", "", OLValuesDf$List1)
+OLValuesDf$List2 <- gsub("\\..*", "", OLValuesDf$List2)
 
 write_csv(OLValuesDf, path = "../OverlapsTable_HypergeometricTestPvals.csv")
 
-
+library(VennDiagram)
+list1 <- split(OLValuesDf, rownames(OLValuesDf))
+dir.create("../vennOutput")
+setwd("../vennOutput")
+index <- 1
+for (list in list1) {
+  pdf(file = paste0(list[[1]], "_", list[[2]], ".pdf"))
+  x <- draw.pairwise.venn(list[[3]], list[[4]], list[[5]], 
+                          category = c(list[[1]], list[[2]]),
+                          cat.pos = c(0, 0))
+  grid.draw(x)
+  dev.off()
+  index <- index + 1
+}
