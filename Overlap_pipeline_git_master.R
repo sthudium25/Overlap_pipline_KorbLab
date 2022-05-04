@@ -4,13 +4,17 @@
 ## a folder containing pairwise venn diagrams (pdfs)
 library(tidyverse)
 library(glue)
+library(VennDiagram)
 
 ## RUN THESE FUNCTIONS BUT DON'T CHANGE
 hyperGeomTest <- function(overlap, sample1, sample2, background) {
   sum(dhyper(overlap:sample1, sample2, background - sample2, sample1))
 }
 
-calculateOverlaps <- function(gene.lists, backgroundSize = 18000) {
+calculateOverlaps <- function(gene.lists, backgroundSize = 18000, out.folder = 'geneOverlapLists') {
+  if (!(dir.exists(glue('../{out.folder}')))) {
+    dir.create(glue('../{out.folder}'))
+  } 
   nms <- combn( names(gene.lists) , 2 , FUN = paste0 , collapse = "_" , simplify = FALSE )
   ll <- combn( gene.lists , 2 , simplify = FALSE )
   out.OLnum <- lapply( ll , function(x) length( intersect( x[[1]] , x[[2]] ) ) )
@@ -19,7 +23,7 @@ calculateOverlaps <- function(gene.lists, backgroundSize = 18000) {
   
   for (i in 1:length(out.OLgenes)) {
     filename = names(out.OLgenes)[i]
-    write_tsv(as_tibble(out.OLgenes[[i]]), file = glue('../geneOverlapLists/{filename}.txt'), col_names = F)
+    write_tsv(as_tibble(out.OLgenes[[i]]), file = glue('../{out.folder}/{filename}.txt'), col_names = F)
   }
   
   List1 = unlist(lapply(ll, function(x) names(x)[1]))
@@ -30,15 +34,31 @@ calculateOverlaps <- function(gene.lists, backgroundSize = 18000) {
   
   tmp = cbind(List1, List2, ith, jth, overlap) %>% as.data.frame()
   
-  out <- tmp2 %>% 
+  out <- tmp %>% 
     mutate(across(ith:overlap, .fns = as.numeric),
-           hyper_pval = mapply(hyperGeomTest, overlap, ith, jth, backgroundSize))
+           hyper_pval = mapply(hyperGeomTest, overlap, ith, jth, backgroundSize),
+           backgroundSize = backgroundSize)
   out
 }
+
+output.venns.toPDF <-  function(ol.list, analysis.name) {
+  venndir = if_else(ol.list[[6]] < 0.05, 
+                    paste0("../", analysis.name, '_vennSignif/'), 
+                    paste0("../", analysis.name, '_vennInsignif/'))
+  pdf(file = file.path(paste0(venndir, ol.list[[1]], "_", ol.list[[2]], ".pdf")))
+  x <- draw.pairwise.venn(ol.list[[3]], ol.list[[4]], ol.list[[5]], 
+                          category = c(ol.list[[1]], ol.list[[2]]),
+                          cat.pos = c(0, 0))
+  grid.draw(x)
+  dev.off()
+}
+
+
 ## set working directory as the folder that contain the genelist files 
-setwd("/Users/Sammy/Desktop/UPenn/Projects/ASD_genes/Experiments/68.ReviewerResponseExperiment/recount3_forMouseStudies/OverlapAnalysis_wSignatureLists/genelists")
+setwd("../genelistsLimma/")
 
 files <- dir()
+files
 
 gene.lists <- list()
 sample.names <- c()
@@ -52,28 +72,19 @@ for (i in files) {
 
 names(gene.lists) = sample.names
 
-## The empty dataframe created below has five columns: The first two name the lists that went into the 
-## overlap, and columns 3-5 contain the number of genes in the ith list, jth list, and the number of genes
-## shared by the ith and jth lists, respectively.
+analysis.name = 'Limma_mouseNewStudies_OLs'
 
-dir.create(path = "../geneOverlapLists")
+OLValuesDf <- calculateOverlaps(gene.lists, backgroundSize = 17987, out.folder = analysis.name)
 
-OLValuesDf <- calculateOverlaps(gene.lists, 18000)
+write_csv(OLValuesDf, file = glue("../{analysis.name}_res.csv"))
+
+venns.list <- split(OLValuesDf, rownames(OLValuesDf))
+dir.create(glue("../{analysis.name}_vennInsignif"))
+dir.create(glue("../{analysis.name}_vennSignif"))
 
 
-write_csv(OLValuesDf, path = "../OverlapsResultsTable.csv")
+lapply(venns.list, output.venns.toPDF, analysis.name = analysis.name)
 
-library(VennDiagram)
-list1 <- split(OLValuesDf, rownames(OLValuesDf))
-dir.create("../vennOutput")
-setwd("../vennOutput")
-index <- 1
-for (list in list1) {
-  pdf(file = paste0(list[[1]], "_", list[[2]], ".pdf"))
-  x <- draw.pairwise.venn(list[[3]], list[[4]], list[[5]], 
-                          category = c(list[[1]], list[[2]]),
-                          cat.pos = c(0, 0))
-  grid.draw(x)
-  dev.off()
-  index <- index + 1
-}
+
+
+
