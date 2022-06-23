@@ -36,7 +36,8 @@ calculateOverlaps <- function(gene.lists, backgroundSize = 18000, out.folder = '
   
   out <- tmp %>% 
     mutate(across(ith:overlap, .fns = as.numeric),
-           hyper_pval = mapply(hyperGeomTest, overlap, ith, jth, backgroundSize),
+           p.value = mapply(hyperGeomTest, overlap, ith, jth, backgroundSize),
+           p.adjust = p.adjust(p.value, method = 'bonf'),
            backgroundSize = backgroundSize)
   out
 }
