@@ -79,7 +79,7 @@ output.venns.toPDF <-  function(ol.list, analysis.name) {
 readFilesToList <- function(files.vec, file.type = c('txt', 'csv', 'xlsx'), col.names = FALSE, sheet=1) {
   stopifnot("Error: at least of of the files listed does not exist." = all(file.exists(files.vec)))
   if (file.type == 'txt') {
-    out <- plyr::llply(files.vec, .fun=read_tsv, col_names = col.names) 
+    out <- lapply(files.vec, read_tsv, col_names = col.names) 
   } 
   if (file.type == 'csv') {
     out <- plyr::llply(files.vec, .fun=read_csv, col_names = col.names)

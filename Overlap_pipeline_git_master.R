@@ -53,35 +53,41 @@ output.venns.toPDF <-  function(ol.list, analysis.name) {
   dev.off()
 }
 
-
-## set working directory as the folder that contain the genelist files 
-setwd("../genelistsLimma/")
-
-files <- dir()
-files
-
-gene.lists <- list()
-sample.names <- c()
-
-for (i in files) {
-  sample = str_remove(i, '\\..*')
-  tmp = read_tsv(i, col_names = F) %>% pull(X1)
-  sample.names = c(sample.names, sample)
-  gene.lists = c(gene.lists, list(tmp))
+readFilesToList <- function(files.vec, file.type = c('txt', 'csv', 'xlsx'), col.names = FALSE, sheet=1) {
+  stopifnot("Error: at least of of the files listed does not exist." = all(file.exists(files.vec)))
+  if (file.type == 'txt') {
+    out <- plyr::llply(files.vec, .fun=read_tsv, col_names = col.names) 
+  } 
+  if (file.type == 'csv') {
+    out <- plyr::llply(files.vec, .fun=read_csv, col_names = col.names)
+  } 
+  if (file.type == 'xlsx') {
+    out <- plyr::llply(files.vec, .fun=readxl::read_xlsx, 
+                       col_names = col.names, sheet = sheet)
+  } 
+  names(out) <- str_remove(basename(files.vec), '\\..*')
+  out
 }
 
-names(gene.lists) = sample.names
+## set working directory as the folder that contain the genelist files 
+setwd("path/to/genelists")
 
-analysis.name = 'Limma_mouseNewStudies_OLs'
+# Read in gene lists that you want to overlap
+files <- list.files(path = '.', pattern = '.txt', full.names = T)
+files
+gene.lists <- readFilesToList(files, file.type = 'txt')
 
-OLValuesDf <- calculateOverlaps(gene.lists, backgroundSize = 17987, out.folder = analysis.name)
+# Give this analysis a name
+analysis.name = ''
 
+# Compute and output pairwise overlaps + a summary file
+OLValuesDf <- calculateOverlaps(gene.lists, backgroundSize = 13739, out.folder = analysis.name)
 write_csv(OLValuesDf, file = glue("../{analysis.name}_res.csv"))
 
+# Draw venn diagrams of overlaps
 venns.list <- split(OLValuesDf, rownames(OLValuesDf))
 dir.create(glue("../{analysis.name}_vennInsignif"))
 dir.create(glue("../{analysis.name}_vennSignif"))
-
 
 lapply(venns.list, output.venns.toPDF, analysis.name = analysis.name)
 
